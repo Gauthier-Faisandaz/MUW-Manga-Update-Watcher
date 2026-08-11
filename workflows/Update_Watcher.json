@@ -1,0 +1,818 @@
+{
+  "name": "Update_Watcher",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        160
+      ],
+      "id": "962a499e-0269-4fc2-bdfd-a6e3efb2ef99",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -352,
+        -368
+      ],
+      "id": "65517872-23de-4c88-9fce-5d175e20daaf",
+      "name": "Every 2 min"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_NOTION_DATABASE_ID",
+          "mode": "list",
+          "cachedResultName": "Multimédia"
+        },
+        "limit": 1,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Type de média|select",
+              "condition": "equals",
+              "selectValue": "Manga"
+            },
+            {
+              "key": "État de l'oeuvre|status",
+              "condition": "does_not_equal",
+              "statusValue": "Terminé"
+            },
+            {
+              "key": "URL|url",
+              "condition": "contains",
+              "urlValue": "www.mangaread.org"
+            },
+            {
+              "key": "Date dernier check|date",
+              "condition": "before",
+              "date": "={{ $now.minus(2,'hours') }}"
+            }
+          ]
+        },
+        "options": {
+          "sort": {
+            "sortValue": [
+              {
+                "key": "Date dernier check|date",
+                "direction": "ascending"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        -128,
+        -368
+      ],
+      "id": "bd280c01-0c4d-47b1-8d99-9a1296706875",
+      "name": "Get manga hosted on mangaread"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.property_url }}",
+                    "rightValue": "https://www.mangaread.org",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "d04ae4d7-6a2c-44d9-a51e-05bd5bcb2eb4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "From mangaread.org"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        96,
+        -368
+      ],
+      "id": "c67f987a-847c-4355-8adf-04f6432edb73",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.property_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        320,
+        -368
+      ],
+      "id": "abf4abbc-278d-4ae2-bc05-7b518e9ae147",
+      "name": "HTTP Request (mangaread.org)",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "chapter_raw",
+              "cssSelector": ".listing-chapters_wrap ul.main > li.wp-manga-chapter a"
+            },
+            {
+              "key": "chapter_url",
+              "cssSelector": ".listing-chapters_wrap ul.main > li.wp-manga-chapter a",
+              "returnValue": "attribute",
+              "attribute": "href"
+            },
+            {
+              "key": "date_raw",
+              "cssSelector": ".listing-chapters_wrap ul.main > li.wp-manga-chapter .chapter-release-date i"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        544,
+        -368
+      ],
+      "id": "63ff0f1f-221f-4364-bc51-71b453cf8e7a",
+      "name": "Extract HTML (mangaread.org)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4e96603d-e1ba-4cd6-8f09-67573a3d357b",
+              "name": "chapter_raw",
+              "value": "={{ parseFloat($json[\"chapter_raw\"].match(/[\\d\\.]+/)[0]) }}",
+              "type": "number"
+            },
+            {
+              "id": "68de1dd9-987f-4930-8b0d-13912bab8e2d",
+              "name": "chapter_url",
+              "value": "={{ $json.chapter_url }}",
+              "type": "string"
+            },
+            {
+              "id": "891bba3f-5669-41ad-8e16-dd2963435dc0",
+              "name": "date_raw",
+              "value": "={{ $json.date_raw }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        768,
+        -368
+      ],
+      "id": "3cb01208-abc9-4271-a7c3-685405f92fe3",
+      "name": "Normalize data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ac3a7d51-cdc5-4ed4-b10e-385556cb2d5c",
+              "leftValue": "={{ $json.chapter_raw }}",
+              "rightValue": "={{ $('Get manga hosted on mangaread').item.json.property_chapitre }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        992,
+        -368
+      ],
+      "id": "438fa732-7e49-4774-b75f-31025c6ee54a",
+      "name": "If more recent chapter"
+    },
+    {
+      "parameters": {
+        "jsCode": "const dateStr = $input.first().json.date_raw;\n\nif (!dateStr) {\n  return { json: { error: 'No date provided' } };\n}\n\nconst [day, month, year] = dateStr.split(/[\\.\\-]/);\n\nif (!day || !month || !year) {\n  return { json: { error: 'Invalid date format, expected DD.MM.YYYY or DD-MM-YYYY' } };\n}\n\nconst date = new Date(`${year}-${month}-${day}`);\n\nif (isNaN(date.getTime())) {\n  return { json: { error: 'Invalid date values' } };\n}\n\nreturn { \n  json: { \n    date_iso: date.toISOString(),\n    date_only: `${year}-${month}-${day}`,\n    original: dateStr\n  } \n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        -448
+      ],
+      "id": "5c5c3763-9774-4bd3-aa8a-53edbbb78a0b",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2fb88823-0118-4f5b-96bf-a2653c71fcce",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1456,
+        -448
+      ],
+      "id": "6e9a0a01-f14f-48f4-822b-1f20f40e6b14",
+      "name": "If date is invalid (relative, string)"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Get manga hosted on mangaread').item.json.url }}"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Date dernier check|date",
+              "date": "={{ $now }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1216,
+        -176
+      ],
+      "id": "89d05c20-7d5d-4e41-a629-5ac802772065",
+      "name": "Update check date"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a date conversion utility.\n\nYou receive:\n1. A relative date expression (examples: \"3 days ago\", \"2 hours ago\", \"yesterday\", \"last week\").\n2. The current date.\n\nOutput ONLY valid JSON with one field \"date\" in format DD-MM-YYYY.\n\nInput:\nRelative date: {{ $('If more recent chapter').item.json.date_raw }}\nCurrent date: {{ $now }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1632,
+        -720
+      ],
+      "id": "9dda28eb-8aee-4e03-9add-b826c796cbe7",
+      "name": "Convert relative date -> calendar",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 2,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1632,
+        -560
+      ],
+      "id": "4d634814-1c47-4a24-aa4b-8ac7fe4dd000",
+      "name": "Llama 3.3 70b instruct (free)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a date conversion utility (fallback model).\n\nInput:\nRelative date: {{ $('If more recent chapter').item.json.date_raw }}\nCurrent date: {{ $now }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1936,
+        -640
+      ],
+      "id": "87e0d1f3-eb56-4b7f-89a5-c99d60cfd91b",
+      "name": "Fallback",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 2,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        -496
+      ],
+      "id": "20f6f259-795c-4e7d-a181-a2f5977a94a5",
+      "name": "Groq Chat Model"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the LLM's JSON response, stripping markdown code fences if present\nlet content;\nif (Array.isArray(items[0].json)) {\n  content = items[0].json[0].text;\n} else if (items[0].json.text) {\n  content = items[0].json.text;\n} else {\n  content = JSON.stringify(items[0].json);\n}\n\ncontent = content.replace(/```json\\s*/g, \"\").replace(/```\\s*/g, \"\").trim();\n\ntry {\n  const parsed = JSON.parse(content);\n  return [{ json: parsed }];\n} catch (error) {\n  return [{ json: { error: \"JSON parsing failed\", error_message: error.message, raw_output: content } }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        -736
+      ],
+      "id": "b8317f66-7a49-4969-ae67-e02b8e351859",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const dateStr = $('Code in JavaScript').item.json.date || $('If date is invalid (relative, string)').item.json.date_raw;\n\nif (!dateStr) {\n  return { json: { error: 'No date provided' } };\n}\n\nconst [day, month, year] = dateStr.split(/[\\.\\-]/);\n\nif (!day || !month || !year) {\n  return { json: { error: 'Invalid date format, expected DD.MM.YYYY or DD-MM-YYYY' } };\n}\n\nconst date = new Date(`${year}-${month}-${day}`);\n\nif (isNaN(date.getTime())) {\n  return { json: { error: 'Invalid date values' } };\n}\n\nreturn { \n  json: { \n    date_iso: date.toISOString(),\n    date_only: `${year}-${month}-${day}`,\n    original: dateStr\n  } \n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        -624
+      ],
+      "id": "54ae2eef-c636-4792-9e48-11c278742b1d",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Get manga hosted on mangaread').item.json.url }}"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Date dernier check|date",
+              "date": "={{ $now }}"
+            },
+            {
+              "key": "Chapitre|number",
+              "numberValue": "={{ $('If more recent chapter').item.json.chapter_raw }}"
+            },
+            {
+              "key": "Date dernier chapitre sorti|date",
+              "includeTime": false,
+              "date": "={{ $json.date_iso }}",
+              "timezone": "Europe/Paris"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2912,
+        -432
+      ],
+      "id": "8a52d838-8e0c-49f7-a376-fb916cf01a96",
+      "name": "Update a database page"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Get manga hosted on mangaread').item.json.url }}"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Date dernier check|date",
+              "date": "={{ $now }}"
+            },
+            {
+              "key": "Chapitre|number",
+              "numberValue": "={{ $('If more recent chapter').item.json.chapter_raw }}"
+            },
+            {
+              "key": "Date dernier chapitre sorti|date",
+              "includeTime": false,
+              "date": "={{ $json.date_iso }}",
+              "timezone": "Europe/Paris"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        -352
+      ],
+      "id": "34878cd5-0cad-4746-a933-9b3347b3ba29",
+      "name": "Update a database page1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ntfy.sh/YOUR_NTFY_TOPIC",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Title",
+              "value": "Erreur avec les LLM !"
+            },
+            {
+              "name": "Tags",
+              "value": "warning"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2256,
+        -592
+      ],
+      "id": "bce31e0f-44c2-4de7-8db7-1cc4ecde7a59",
+      "name": "ntfy - error message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ntfy.sh/YOUR_NTFY_TOPIC",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Title",
+              "value": "Un nouveau chapitre est sorti ! "
+            },
+            {
+              "name": "Tags",
+              "value": "tada"
+            },
+            {
+              "name": "Click",
+              "value": "={{ $json.property_url }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ $json.name }} - Chapitre {{ $json.property_chapitre }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3152,
+        -432
+      ],
+      "id": "a174b5c4-c904-421f-8d09-15632b8a6889",
+      "name": "ntfy - update notification"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ntfy.sh/YOUR_NTFY_TOPIC",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Title",
+              "value": "Un nouveau chapitre est sorti ! "
+            },
+            {
+              "name": "Tags",
+              "value": "tada"
+            },
+            {
+              "name": "Click",
+              "value": "={{ $json.property_url }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ $json.name }} - Chapitre {{ $json.property_chapitre }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1984,
+        -336
+      ],
+      "id": "970d13f2-a612-4641-843a-16151a74030f",
+      "name": "ntfy - update notification1"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        []
+      ]
+    },
+    "Get manga hosted on mangaread": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (mangaread.org)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (mangaread.org)": {
+      "main": [
+        [
+          {
+            "node": "Extract HTML (mangaread.org)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize data": {
+      "main": [
+        [
+          {
+            "node": "If more recent chapter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract HTML (mangaread.org)": {
+      "main": [
+        [
+          {
+            "node": "Normalize data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If more recent chapter": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update check date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a database page": {
+      "main": [
+        [
+          {
+            "node": "ntfy - update notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert relative date -> calendar": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If date is invalid (relative, string)": {
+      "main": [
+        [
+          {
+            "node": "Convert relative date -> calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update a database page1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ntfy - error message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Fallback",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llama 3.3 70b instruct (free)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Convert relative date -> calendar",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Update a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "If date is invalid (relative, string)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a database page1": {
+      "main": [
+        [
+          {
+            "node": "ntfy - update notification1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 2 min": {
+      "main": [
+        [
+          {
+            "node": "Get manga hosted on mangaread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  }
+}

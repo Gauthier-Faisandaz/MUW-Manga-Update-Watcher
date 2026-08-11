@@ -1,0 +1,233 @@
+{
+  "name": "Webhook_URL_Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "YOUR_WEBHOOK_PATH_1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -64,
+        0
+      ],
+      "id": "5923a11e-6b5e-4995-923d-a58757a09288",
+      "name": "Webhook for auto-check",
+      "webhookId": "YOUR_WEBHOOK_PATH_1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "YOUR_WEBHOOK_PATH_2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -64,
+        224
+      ],
+      "id": "3d9dff79-623f-490c-9e0a-73e2758101cf",
+      "name": "Webhook",
+      "webhookId": "YOUR_WEBHOOK_PATH_2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the manga's base URL (strip the chapter segment) from the incoming\n// webhook payload, e.g. sent by a browser extension or Shortcuts automation\n// while reading a chapter.\nfor (const item of $input.all()) {\n  const fullUrl = item.json.body.url;\n\n  const chapterIndex = fullUrl.indexOf('/chapter-');\n  const mangaBaseUrl = fullUrl.substring(0, chapterIndex + 1);\n\n  item.json.body.mangaBaseUrl = mangaBaseUrl;\n\n  console.log('Full URL:', fullUrl);\n  console.log('Manga URL:', mangaBaseUrl);\n}\n\nreturn $input.all();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        0
+      ],
+      "id": "4114b124-e088-441c-9410-15a47e9e96af",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_NOTION_DATABASE_ID",
+          "mode": "list",
+          "cachedResultName": "Mangas, comics, webtoons"
+        },
+        "returnAll": true,
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "key": "URL|url",
+              "condition": "starts_with",
+              "urlValue": "={{ $json.body.mangaBaseUrl }}"
+            },
+            {
+              "key": "Nom|title",
+              "condition": "equals",
+              "titleValue": "={{ $json.body.manga }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        384,
+        0
+      ],
+      "id": "bce9925c-b2e3-4652-a670-beda689a9103",
+      "name": "Get many database pages"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.url }}",
+          "mode": "url"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Dernier chapitre lu|number",
+              "numberValue": "={{ $('Code in JavaScript').item.json.body.chapter > $json.property_dernier_chapitre_lu ? $('Code in JavaScript').item.json.body.chapter : $json.property_dernier_chapitre_lu }}"
+            },
+            {
+              "key": "Lecture|status",
+              "statusValue": "={{ $('Code in JavaScript').item.json.body.chapter >= $json.property_chapitre ? \"Up to date\" : \"En cours\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "d8f1c4fc-2674-46c6-b542-f58684e650c8",
+      "name": "Update a database page"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Same base-URL extraction, used on the manual-add webhook path, with a\n// fallback for URLs that are already on the manga's root page (no chapter\n// segment in the path).\nfor (const item of $input.all()) {\n  const fullUrl = item.json.body.url;\n\n  let mangaBaseUrl;\n  const chapterIndex = fullUrl.indexOf('/chapter-');\n\n  if (chapterIndex !== -1) {\n    mangaBaseUrl = fullUrl.substring(0, chapterIndex + 1);\n  } else {\n    mangaBaseUrl = fullUrl;\n  }\n\n  const queryIndex = mangaBaseUrl.indexOf('?');\n  if (queryIndex !== -1) {\n    mangaBaseUrl = mangaBaseUrl.substring(0, queryIndex);\n  }\n\n  item.json.body.mangaBaseUrl = mangaBaseUrl;\n}\n\nreturn $input.all();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        224
+      ],
+      "id": "4c325e58-e050-4046-9bf4-bc496540d97e",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_NOTION_DATABASE_ID",
+          "mode": "list",
+          "cachedResultName": "Mangas, comics, webtoons"
+        },
+        "title": "={{ $json.body.manga }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Nom|title",
+              "title": "={{ $json.body.manga }}"
+            },
+            {
+              "key": "URL|url",
+              "urlValue": "={{ $json.body.mangaBaseUrl }}"
+            },
+            {
+              "key": "Type de média|select",
+              "selectValue": "=Manga"
+            },
+            {
+              "key": "Date dernier check|date",
+              "date": "={{ $now.minus(2,'days') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        384,
+        224
+      ],
+      "id": "1771bd68-9ae4-48e3-996c-35eed317134f",
+      "name": "Create a database page"
+    }
+  ],
+  "connections": {
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get many database pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many database pages": {
+      "main": [
+        [
+          {
+            "node": "Update a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook for auto-check": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Create a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
