@@ -12,6 +12,7 @@ Projet personnel développé avec [n8n](https://n8n.io/) dans le cadre de ma rec
 - Normalisation des dates relatives ("il y a 3 jours", "hier"...) en dates calendaires exploitables, via un LLM avec modèle de secours en cas d'échec du premier.
 - Notification push instantanée (ntfy.sh) en cas de nouveau chapitre ou d'erreur technique.
 - Deux webhooks pour interagir avec le système de l'extérieur : mise à jour du chapitre lu en un clic, et ajout d'un nouveau manga au suivi.
+- Script de navigateur (Tampermonkey) qui déclenche ces webhooks directement depuis la page du manga : suivi automatique du chapitre en cours de lecture, et bouton pour ajouter une nouvelle série d'un clic.
 - Gestion des erreurs à chaque étape critique (requêtes HTTP, appels LLM, mises à jour Notion) pour ne jamais laisser le workflow planter silencieusement.
 
 ## Architecture
@@ -44,6 +45,21 @@ Webhook "nouveau manga" → extraction de l'URL de base du manga
 
 Cette séparation permet de découpler la veille automatique (côté serveur) de l'interaction utilisateur (déclenchée manuellement, par exemple depuis une extension de navigateur ou un raccourci mobile pendant la lecture).
 
+**3. Extension navigateur (Tampermonkey)** — côté client, sur mangaread.org
+
+```
+Page d'un chapitre → détection automatique (titre + n° de chapitre)
+                    → appel du webhook "chapitre lu" (Update_Watcher côté lecture)
+
+Bouton flottant "Save Manga" → appel du webhook "nouveau manga" (ajout au suivi)
+```
+
+Le script injecte un bouton flottant sur toutes les pages de mangaread.org, et détecte automatiquement le numéro de chapitre quand on est sur une page de lecture, pour synchroniser la progression sans action manuelle.
+
+<p align="center">
+  <img src="assets/screenshot-save-button.jpg" alt="Bouton Save Manga injecté sur mangaread.org" width="600">
+</p>
+
 ## Stack technique
 
 - **n8n** — orchestration des workflows et logique métier
@@ -52,6 +68,7 @@ Cette séparation permet de découpler la veille automatique (côté serveur) de
 - **LLM (OpenRouter / Groq — Llama 3.3 70B)** — interprétation de dates en langage naturel, avec bascule automatique vers un second fournisseur en cas d'échec
 - **ntfy.sh** — notifications push sans backend dédié
 - **Webhooks** — points d'entrée pour déclenchements externes
+- **Tampermonkey (userscript JS)** — injection d'UI et déclenchement des webhooks côté client, sans backend intermédiaire
 
 ## Compétences mises en œuvre
 
@@ -67,12 +84,16 @@ Cette séparation permet de découpler la veille automatique (côté serveur) de
 ```
 MUW-Manga-Update-Watcher/
 ├── README.md
+├── assets/
+│   └── screenshot-save-button.jpg   # bouton injecté sur mangaread.org
+├── userscript/
+│   └── manga-progress-tracker.user.js   # script Tampermonkey (client)
 └── workflows/
     ├── Update_Watcher.json          # veille automatique + notifications
     └── Webhook_URL_Monitor.json     # webhooks (lecture / ajout de manga)
 ```
 
-Les exports JSON sont directement importables dans n8n (`Workflows → Import from File`). Les identifiants sensibles (base Notion, webhooks, topic de notification) ont été remplacés par des placeholders (`YOUR_...`) : il faut les reconfigurer avec ses propres identifiants avant utilisation.
+Les exports JSON sont directement importables dans n8n (`Workflows → Import from File`). Le script `.user.js` s'installe via [Tampermonkey](https://www.tampermonkey.net/). Les identifiants sensibles (base Notion, webhooks, topic de notification, URL d'instance n8n) ont été remplacés par des placeholders (`YOUR_...`) dans les trois fichiers : il faut les reconfigurer avec ses propres identifiants avant utilisation.
 
 ## Configuration nécessaire
 
